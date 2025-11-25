@@ -6,14 +6,51 @@
 <style>
   body {
     font-family: Arial, sans-serif;
-    background: #f2f2f2;
+    background: #aaa; /* grey base */
     margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Yellow paint splatter background using pseudo-elements */
+  body::before, body::after {
+    content: "";
+    position: absolute;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(255,255,0,0.7) 0%, rgba(255,255,0,0) 70%);
+    opacity: 0.4;
+    filter: blur(10px);
+    z-index: -1;
+  }
+
+  body::before {
+    top: 10%;
+    left: 15%;
+  }
+
+  body::after {
+    bottom: 10%;
+    right: 10%;
+  }
+
+  #game-container {
+    background: rgba(255,255,255,0.2);
     padding: 20px;
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
     text-align: center;
   }
 
   h1 {
-    margin-top: 0;
+    margin: 0;
+    margin-bottom: 10px;
+    color: black;
   }
 
   #grid {
@@ -47,7 +84,7 @@
   }
 
   #words {
-    margin-top: 20px;
+    margin-top: 10px;
   }
 
   .word {
@@ -64,17 +101,19 @@
     font-size: 22px;
     margin-top: 20px;
     font-weight: bold;
-    color: #333;
+    color: black;
   }
 </style>
 </head>
 <body>
 
-<h1>Word Search</h1>
+<div id="game-container">
+  <h1>Word Search</h1>
 
-<div id="words"></div>
-<div id="grid"></div>
-<div id="message"></div>
+  <div id="words"></div>
+  <div id="grid"></div>
+  <div id="message"></div>
+</div>
 
 <script>
 const wordLists = [
@@ -92,129 +131,11 @@ let currentWords = [];
 let foundWords = [];
 
 function newPuzzle() {
-  // Reset UI
   document.getElementById("message").innerHTML = "";
   document.getElementById("grid").innerHTML = "";
   document.getElementById("words").innerHTML = "";
 
-  // Pick random word list
   currentWords = wordLists[Math.floor(Math.random() * wordLists.length)];
   foundWords = [];
 
-  // Display words list
-  currentWords.forEach(w => {
-    let div = document.createElement("div");
-    div.className = "word";
-    div.id = "word-" + w;
-    div.innerText = w;
-    document.getElementById("words").appendChild(div);
-  });
-
-  // Create empty grid
-  grid = [];
-  for (let i = 0; i < gridSize; i++) grid[i] = Array(gridSize).fill("");
-
-  // Place each word
-  currentWords.forEach(word => placeWord(word));
-
-  // Fill empty cells
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      if (grid[r][c] === "") {
-        grid[r][c] = letters[Math.floor(Math.random() * letters.length)];
-      }
-    }
-  }
-
-  // Render grid
-  renderGrid();
-}
-
-function placeWord(word) {
-  const directions = [
-    {r:0, c:1}, {r:1, c:0}, {r:1, c:1}, {r:-1, c:1}
-  ];
-
-  while (true) {
-    let row = Math.floor(Math.random() * gridSize);
-    let col = Math.floor(Math.random() * gridSize);
-    let dir = directions[Math.floor(Math.random() * directions.length)];
-
-    let fits = true;
-    let r = row, c = col;
-
-    for (let i = 0; i < word.length; i++) {
-      if (r < 0 || r >= gridSize || c < 0 || c >= gridSize) {
-        fits = false; break;
-      }
-      if (grid[r][c] && grid[r][c] !== word[i]) {
-        fits = false; break;
-      }
-      r += dir.r; c += dir.c;
-    }
-
-    if (!fits) continue;
-
-    // Place word
-    r = row; c = col;
-    for (let i = 0; i < word.length; i++) {
-      grid[r][c] = word[i];
-      r += dir.r; c += dir.c;
-    }
-    break;
-  }
-}
-
-function renderGrid() {
-  const board = document.getElementById("grid");
-  board.style.gridTemplateColumns = `repeat(${gridSize}, 35px)`;
-
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      let cell = document.createElement("div");
-      cell.className = "cell";
-      cell.innerText = grid[r][c];
-      cell.dataset.row = r;
-      cell.dataset.col = c;
-
-      cell.addEventListener("click", () => handleSelect(cell));
-      board.appendChild(cell);
-    }
-  }
-}
-
-function handleSelect(cell) {
-  if (cell.classList.contains("found")) return;
-
-  cell.classList.toggle("selected");
-
-  // Build the selected letters string
-  selectedCells = [...document.querySelectorAll(".selected")];
-  let word = selectedCells.map(c => c.innerText).join("");
-
-  // Check if selected matches any word
-  if (currentWords.includes(word)) {
-    // Mark found
-    selectedCells.forEach(c => {
-      c.classList.remove("selected");
-      c.classList.add("found");
-    });
-
-    document.getElementById("word-" + word).classList.add("found-word");
-    foundWords.push(word);
-
-    // Win check
-    if (foundWords.length === currentWords.length) {
-      document.getElementById("message").innerHTML = "🎉 All words found! New puzzle loading...";
-      setTimeout(newPuzzle, 2000);
-    }
-  }
-}
-  
-// Start the first puzzle
-newPuzzle();
-
-</script>
-</body>
-</html>
+  currentWords.for
