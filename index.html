@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>Word Search Game</title>
+
 <style>
   body {
     font-family: Arial, sans-serif;
-    background: #aaa; /* grey base */
+    background: #888; /* grey */
     margin: 0;
-    padding: 0;
     height: 100vh;
     display: flex;
     justify-content: center;
@@ -17,105 +17,81 @@
     position: relative;
   }
 
-  /* Yellow paint splatter background using pseudo-elements */
+  /* paint splatter */
   body::before, body::after {
     content: "";
     position: absolute;
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, rgba(255,255,0,0.7) 0%, rgba(255,255,0,0) 70%);
-    opacity: 0.4;
-    filter: blur(10px);
+    width: 420px;
+    height: 420px;
+    background: radial-gradient(circle, rgba(255,255,0,0.6) 0%, rgba(255,255,0,0) 70%);
     z-index: -1;
+    filter: blur(8px);
   }
 
-  body::before {
-    top: 10%;
-    left: 15%;
-  }
+  body::before { top: 5%; left: 10%; }
+  body::after { bottom: 5%; right: 10%; }
 
-  body::after {
-    bottom: 10%;
-    right: 10%;
-  }
-
-  #game-container {
-    background: rgba(255,255,255,0.2);
-    padding: 20px;
-    border-radius: 12px;
-    backdrop-filter: blur(5px);
+  #game {
+    background: rgba(255,255,255,0.25);
+    padding: 20px 30px;
+    border-radius: 14px;
+    backdrop-filter: blur(6px);
     text-align: center;
   }
 
   h1 {
-    margin: 0;
+    margin-top: 0;
     margin-bottom: 10px;
-    color: black;
   }
 
   #grid {
     display: grid;
     margin: 20px auto;
     gap: 4px;
-    touch-action: manipulation;
   }
 
   .cell {
     width: 35px;
     height: 35px;
     background: white;
-    border: 1px solid #ccc;
+    border: 1px solid #bbb;
     display: flex;
-    justify-content: center;
     align-items: center;
-    font-size: 20px;
+    justify-content: center;
+    font-size: 19px;
     font-weight: bold;
     cursor: pointer;
     user-select: none;
   }
 
-  .selected {
-    background: #ffe680;
-  }
+  .selected { background: #ffe45e; }
+  .found { background: #79ff79 !important; }
 
-  .found {
-    background: #7cff7c !important;
-    color: black;
-  }
-
-  #words {
-    margin-top: 10px;
-  }
-
-  .word {
-    font-size: 18px;
-    margin: 5px 0;
-  }
-
-  .word.found-word {
-    text-decoration: line-through;
-    color: green;
-  }
+  #words { margin-top: 10px; }
+  .word { font-size: 18px; margin: 4px 0; }
+  .found-word { text-decoration: line-through; color: green; }
 
   #message {
-    font-size: 22px;
-    margin-top: 20px;
+    font-size: 20px;
     font-weight: bold;
-    color: black;
+    margin-top: 15px;
   }
 </style>
 </head>
+
 <body>
 
-<div id="game-container">
+<div id="game">
   <h1>Word Search</h1>
-
   <div id="words"></div>
   <div id="grid"></div>
   <div id="message"></div>
 </div>
 
 <script>
+// ------------------------------
+// WORD LISTS
+// ------------------------------
 const wordLists = [
   ["DOG", "CAT", "BONE", "FOOD", "TAIL"],
   ["SUN", "MOON", "STAR", "SPACE", "SKY"],
@@ -130,12 +106,133 @@ let selectedCells = [];
 let currentWords = [];
 let foundWords = [];
 
+// ------------------------------
+// NEW PUZZLE
+// ------------------------------
 function newPuzzle() {
+  // reset ui
   document.getElementById("message").innerHTML = "";
   document.getElementById("grid").innerHTML = "";
   document.getElementById("words").innerHTML = "";
 
+  // choose random word list
   currentWords = wordLists[Math.floor(Math.random() * wordLists.length)];
   foundWords = [];
 
-  currentWords.for
+  // show word list
+  currentWords.forEach(word => {
+    let w = document.createElement("div");
+    w.className = "word";
+    w.id = "word-" + word;
+    w.innerText = word;
+    document.getElementById("words").appendChild(w);
+  });
+
+  // blank grid
+  grid = Array(gridSize).fill().map(() => Array(gridSize).fill(""));
+
+  // place words
+  currentWords.forEach(word => placeWord(word));
+
+  // fill empty cells
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (grid[r][c] === "") {
+        grid[r][c] = letters[Math.floor(Math.random() * letters.length)];
+      }
+    }
+  }
+
+  renderGrid();
+}
+
+// ------------------------------
+// PLACE WORD
+// ------------------------------
+function placeWord(word) {
+  const dirs = [
+    {r:0, c:1}, {r:1, c:0},
+    {r:1, c:1}, {r:-1, c:1}
+  ];
+
+  while (true) {
+    let row = Math.floor(Math.random() * gridSize);
+    let col = Math.floor(Math.random() * gridSize);
+    let dir = dirs[Math.floor(Math.random() * dirs.length)];
+
+    let r = row, c = col;
+    let fits = true;
+
+    for (let i = 0; i < word.length; i++) {
+      if (r < 0 || r >= gridSize || c < 0 || c >= gridSize) { fits = false; break; }
+      if (grid[r][c] && grid[r][c] !== word[i]) { fits = false; break; }
+      r += dir.r; c += dir.c;
+    }
+
+    if (!fits) continue;
+
+    r = row; c = col;
+    for (let i = 0; i < word.length; i++) {
+      grid[r][c] = word[i];
+      r += dir.r; c += dir.c;
+    }
+    break;
+  }
+}
+
+// ------------------------------
+// RENDER GRID
+// ------------------------------
+function renderGrid() {
+  const board = document.getElementById("grid");
+  board.style.gridTemplateColumns = `repeat(${gridSize}, 35px)`;
+
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      let cell = document.createElement("div");
+      cell.className = "cell";
+      cell.textContent = grid[r][c];
+
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+
+      cell.addEventListener("click", () => selectCell(cell));
+
+      board.appendChild(cell);
+    }
+  }
+}
+
+// ------------------------------
+// SELECT CELL
+// ------------------------------
+function selectCell(cell) {
+  if (cell.classList.contains("found")) return;
+
+  cell.classList.toggle("selected");
+  selectedCells = [...document.querySelectorAll(".selected")];
+  let word = selectedCells.map(c => c.textContent).join("");
+
+  if (currentWords.includes(word)) {
+    selectedCells.forEach(c => {
+      c.classList.remove("selected");
+      c.classList.add("found");
+    });
+
+    document.getElementById("word-" + word).classList.add("found-word");
+    foundWords.push(word);
+
+    if (foundWords.length === currentWords.length) {
+      document.getElementById("message").innerText = "🎉 All words found! Loading a new puzzle...";
+      setTimeout(newPuzzle, 2000);
+    }
+  }
+}
+
+// start
+newPuzzle();
+</script>
+
+</body>
+</html>
