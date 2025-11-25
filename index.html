@@ -11,17 +11,17 @@
     }
 
     body {
-        background: #777;
+        background: #777; /* grey */
+        font-family: Arial, sans-serif;
+        user-select: none;
         overflow: hidden;
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
-        font-family: Arial, sans-serif;
-        user-select: none;
-        position: relative;
     }
 
-    /* FULL-SCREEN PAINT SPLATTER BACKGROUND */
+    /* FULL SCREEN PAINT SPLATTERS */
     body::before {
         content: "";
         position: fixed;
@@ -34,25 +34,22 @@
            radial-gradient(circle, yellow 0%, transparent 60%),
            radial-gradient(circle, yellow 0%, transparent 70%);
         background-size:
-           350px 350px,
-           280px 280px,
-           260px 260px,
+           400px 400px,
+           320px 320px,
            300px 300px,
-           240px 240px;
+           350px 350px,
+           280px 280px;
         background-position:
-           15% 20%,
-           75% 30%,
-           50% 80%,
-           20% 65%,
-           85% 75%;
+           12% 18%, 78% 28%, 50% 88%, 18% 70%, 88% 78%;
         opacity: 0.45;
         z-index: 0;
         pointer-events: none;
     }
 
+    /* TITLE + CREDIT */
     #title {
-        font-size: 40px;
         margin-top: 20px;
+        font-size: 42px;
         font-weight: bold;
         color: white;
         z-index: 10;
@@ -65,38 +62,49 @@
         color: #fff;
         opacity: 0.9;
         z-index: 10;
-        margin-bottom: 10px;
+        text-align: center;
     }
 
+    /* WORD LIST */
     #wordlist {
-        margin: 10px;
-        padding: 10px;
+        margin-top: 10px;
+        padding: 10px 18px;
         background: rgba(255,255,255,0.25);
-        border-radius: 8px;
         color: white;
-        font-size: 20px;
+        border-radius: 10px;
+        font-size: 21px;
         text-align: center;
         z-index: 10;
     }
 
+    /* GRID WRAPPER — THIS IS WHAT CENTRES THE PUZZLE */
+    #grid-wrapper {
+        flex-grow: 1;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;   /* perfect middle */
+        z-index: 10;
+        padding-bottom: 40px;
+    }
+
+    /* THE GRID ITSELF (MADE MUCH BIGGER) */
     #grid {
         display: grid;
-        gap: 4px;
-        margin-top: 10px;
-        z-index: 10;
+        gap: 5px;
     }
 
     .cell {
-        width: 40px;
-        height: 40px;
+        width: 48px;
+        height: 48px;
         background: white;
         color: black;
+        border-radius: 6px;
         display: flex;
-        align-items: center;
         justify-content: center;
-        font-size: 22px;
+        align-items: center;
+        font-size: 26px;
         font-weight: bold;
-        border-radius: 4px;
     }
 
     .selected {
@@ -115,7 +123,11 @@
 <div id="credit">made by @nortydigitalcrew</div>
 
 <div id="wordlist">Loading...</div>
-<div id="grid"></div>
+
+<!-- NEW: This wrapper centres the grid -->
+<div id="grid-wrapper">
+    <div id="grid"></div>
+</div>
 
 <script>
 let gridSize = 10;
@@ -132,10 +144,11 @@ function generateWords() {
         "FLOWER","PLANET","ROCKET","PUZZLE","JUNGLE","MONKEY"
     ];
 
-    const wordLength = Math.min(4 + level, 10);  
-    const filtered = baseWords.filter(w => w.length <= wordLength);
+    const maxLength = Math.min(4 + level, 10);
+    const filtered = baseWords.filter(w => w.length <= maxLength);
 
     shuffle(filtered);
+
     return filtered.slice(0, 5);
 }
 
@@ -163,13 +176,14 @@ function generateGrid() {
 function placeWords() {
     for (const word of currentWords) {
         let placed = false;
+
         while (!placed) {
             const x = Math.floor(Math.random() * gridSize);
             const y = Math.floor(Math.random() * gridSize);
 
             const directions = [
-                [1,0], [-1,0], [0,1], [0,-1],
-                [1,1], [-1,-1], [1,-1], [-1,1]
+                [1,0],[-1,0],[0,1],[0,-1],
+                [1,1],[-1,-1],[1,-1],[-1,1]
             ];
             shuffle(directions);
 
@@ -209,19 +223,18 @@ function fillRandomLetters() {
 
 function renderGrid() {
     const g = document.getElementById("grid");
-    g.style.gridTemplateColumns = `repeat(${gridSize}, 40px)`;
+    g.style.gridTemplateColumns = `repeat(${gridSize}, 48px)`;
     g.innerHTML = "";
 
     for (let y = 0; y < gridSize; y++) {
         for (let x = 0; x < gridSize; x++) {
             const cell = document.createElement("div");
             cell.className = "cell";
-            cell.innerText = grid[y][x];
+            cell.textContent = grid[y][x];
             cell.dataset.x = x;
             cell.dataset.y = y;
 
             cell.addEventListener("click", () => handleSelect(cell));
-
             g.appendChild(cell);
         }
     }
@@ -244,16 +257,14 @@ function handleSelect(cell) {
 }
 
 function checkSelection() {
-    const letters = selectedCells.map(c => c.innerText).join("");
+    const letters = selectedCells.map(c => c.textContent).join("");
     const reversed = letters.split("").reverse().join("");
 
-    const matchedWord = currentWords.find(
-        w => w === letters || w === reversed
-    );
+    const match = currentWords.find(w => w === letters || w === reversed);
 
-    if (matchedWord) {
-        foundWords.push(matchedWord);
-        highlightFound();
+    if (match) {
+        foundWords.push(match);
+        highlightWord(match);
         updateWordList();
 
         if (foundWords.length === currentWords.length) {
@@ -267,41 +278,33 @@ function checkSelection() {
     }, 200);
 }
 
-function highlightFound() {
-    for (let word of foundWords) {
-        highlightWordInGrid(word);
-    }
-}
-
-function highlightWordInGrid(word) {
-    const full = word;
-    const reversed = word.split("").reverse().join("");
+function highlightWord(word) {
+    const rev = word.split("").reverse().join("");
 
     for (let y = 0; y < gridSize; y++) {
         for (let x = 0; x < gridSize; x++) {
 
-            const tries = [
+            const dirs = [
                 [1,0],[-1,0],[0,1],[0,-1],
                 [1,1],[-1,-1],[1,-1],[-1,1]
             ];
 
-            for (const [dx,dy] of tries) {
-                let collect = "";
+            for (const [dx,dy] of dirs) {
+                let text = "";
 
-                for (let i = 0; i < full.length; i++) {
+                for (let i = 0; i < word.length; i++) {
                     const nx = x + i*dx;
                     const ny = y + i*dy;
+
                     if (nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) break;
-                    collect += grid[ny][nx];
+                    text += grid[ny][nx];
                 }
 
-                if (collect === full || collect === reversed) {
-                    for (let i = 0; i < full.length; i++) {
+                if (text === word || text === rev) {
+                    for (let i = 0; i < word.length; i++) {
                         const nx = x + i*dx;
                         const ny = y + i*dy;
-                        const cell = document.querySelector(
-                            `.cell[data-x="${nx}"][data-y="${ny}"]`
-                        );
+                        const cell = document.querySelector(`.cell[data-x="${nx}"][data-y="${ny}"]`);
                         cell.classList.add("found");
                     }
                 }
@@ -312,7 +315,7 @@ function highlightWordInGrid(word) {
 
 function nextLevel() {
     level++;
-    gridSize = Math.min(14, gridSize + 1);  
+    gridSize = Math.min(14, gridSize + 1);
     generateGrid();
 }
 
