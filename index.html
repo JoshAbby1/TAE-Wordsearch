@@ -7,7 +7,7 @@
 <style>
   body {
     font-family: Arial, sans-serif;
-    background: #888; /* grey */
+    background: #888;
     margin: 0;
     height: 100vh;
     display: flex;
@@ -17,48 +17,46 @@
     position: relative;
   }
 
-  /* paint splatter */
+  /* yellow paint splatter */
   body::before, body::after {
     content: "";
     position: absolute;
-    width: 420px;
-    height: 420px;
+    width: 450px;
+    height: 450px;
     background: radial-gradient(circle, rgba(255,255,0,0.6) 0%, rgba(255,255,0,0) 70%);
     z-index: -1;
-    filter: blur(8px);
+    filter: blur(10px);
   }
 
-  body::before { top: 5%; left: 10%; }
-  body::after { bottom: 5%; right: 10%; }
+  body::before { top: 5%; left: 8%; }
+  body::after { bottom: 8%; right: 10%; }
 
   #game {
     background: rgba(255,255,255,0.25);
-    padding: 20px 30px;
+    padding: 20px 35px;
     border-radius: 14px;
     backdrop-filter: blur(6px);
     text-align: center;
   }
 
-  h1 {
-    margin-top: 0;
-    margin-bottom: 10px;
-  }
+  h1 { margin: 0 0 10px; }
 
   #grid {
     display: grid;
-    margin: 20px auto;
+    margin: 25px auto;
     gap: 4px;
   }
 
+  /* bigger cells */
   .cell {
-    width: 35px;
-    height: 35px;
+    width: 40px;
+    height: 40px;
     background: white;
     border: 1px solid #bbb;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 19px;
+    font-size: 22px;
     font-weight: bold;
     cursor: pointer;
     user-select: none;
@@ -68,7 +66,7 @@
   .found { background: #79ff79 !important; }
 
   #words { margin-top: 10px; }
-  .word { font-size: 18px; margin: 4px 0; }
+  .word { font-size: 19px; margin: 5px 0; }
   .found-word { text-decoration: line-through; color: green; }
 
   #message {
@@ -89,52 +87,54 @@
 </div>
 
 <script>
-// ------------------------------
-// WORD LISTS
-// ------------------------------
-const wordLists = [
-  ["DOG", "CAT", "BONE", "FOOD", "TAIL"],
-  ["SUN", "MOON", "STAR", "SPACE", "SKY"],
-  ["RAIN", "WIND", "CLOUD", "STORM", "SNOW"],
-  ["CAR", "ROAD", "TYRE", "FUEL", "MAP"],
-  ["GAME", "CODE", "BUG", "HTML", "JS"]
-];
+// --------------------------------------
+// LEVELS → each new level = longer words
+// --------------------------------------
+let level = 1;
 
-let gridSize = 10;
+const wordLevels = {
+  1: ["DOG", "CAT", "HAT", "CAR", "SUN"],
+  2: ["BONES", "STORM", "CLOUD", "SPACE", "STONE"],
+  3: ["PLANET", "ROCKET", "PUZZLE", "DRIVER", "MARKET"],
+  4: ["GALAXY", "WEATHER", "JOURNEY", "REACTOR", "FUSION"],
+  5: ["ASTEROID", "HORIZON", "SOFTWARE", "MOUNTAIN", "LANGUAGE"]
+};
+
+let gridSize = 12;              // bigger grid
 let grid = [];
 let selectedCells = [];
 let currentWords = [];
 let foundWords = [];
 
-// ------------------------------
-// NEW PUZZLE
-// ------------------------------
+// --------------------------------------
+// CREATE NEW PUZZLE
+// --------------------------------------
 function newPuzzle() {
-  // reset ui
   document.getElementById("message").innerHTML = "";
   document.getElementById("grid").innerHTML = "";
   document.getElementById("words").innerHTML = "";
 
-  // choose random word list
-  currentWords = wordLists[Math.floor(Math.random() * wordLists.length)];
+  // pick words for the level
+  const maxLevel = Math.max(...Object.keys(wordLevels));
+  currentWords = wordLevels[Math.min(level, maxLevel)];
   foundWords = [];
 
-  // show word list
-  currentWords.forEach(word => {
-    let w = document.createElement("div");
-    w.className = "word";
-    w.id = "word-" + word;
-    w.innerText = word;
-    document.getElementById("words").appendChild(w);
+  // show words
+  currentWords.forEach(w => {
+    let div = document.createElement("div");
+    div.className = "word";
+    div.id = "word-" + w;
+    div.innerText = w;
+    document.getElementById("words").appendChild(div);
   });
 
-  // blank grid
+  // create blank grid
   grid = Array(gridSize).fill().map(() => Array(gridSize).fill(""));
 
-  // place words
+  // place all words
   currentWords.forEach(word => placeWord(word));
 
-  // fill empty cells
+  // fill empty spots
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   for (let r = 0; r < gridSize; r++) {
     for (let c = 0; c < gridSize; c++) {
@@ -147,13 +147,15 @@ function newPuzzle() {
   renderGrid();
 }
 
-// ------------------------------
-// PLACE WORD
-// ------------------------------
+// --------------------------------------
+// PLACE SINGLE WORD ON GRID
+// --------------------------------------
 function placeWord(word) {
   const dirs = [
-    {r:0, c:1}, {r:1, c:0},
-    {r:1, c:1}, {r:-1, c:1}
+    {r:0, c:1},  // right
+    {r:1, c:0},  // down
+    {r:1, c:1},  // diagonal
+    {r:-1, c:1}  // reverse diagonal
   ];
 
   while (true) {
@@ -181,12 +183,12 @@ function placeWord(word) {
   }
 }
 
-// ------------------------------
-// RENDER GRID
-// ------------------------------
+// --------------------------------------
+// DISPLAY THE GRID
+// --------------------------------------
 function renderGrid() {
   const board = document.getElementById("grid");
-  board.style.gridTemplateColumns = `repeat(${gridSize}, 35px)`;
+  board.style.gridTemplateColumns = `repeat(${gridSize}, 40px)`; // bigger
 
   for (let r = 0; r < gridSize; r++) {
     for (let c = 0; c < gridSize; c++) {
@@ -198,20 +200,20 @@ function renderGrid() {
       cell.dataset.col = c;
 
       cell.addEventListener("click", () => selectCell(cell));
-
       board.appendChild(cell);
     }
   }
 }
 
-// ------------------------------
-// SELECT CELL
-// ------------------------------
+// --------------------------------------
+// WHEN USER TAPS A CELL
+// --------------------------------------
 function selectCell(cell) {
   if (cell.classList.contains("found")) return;
 
   cell.classList.toggle("selected");
   selectedCells = [...document.querySelectorAll(".selected")];
+
   let word = selectedCells.map(c => c.textContent).join("");
 
   if (currentWords.includes(word)) {
@@ -223,14 +225,18 @@ function selectCell(cell) {
     document.getElementById("word-" + word).classList.add("found-word");
     foundWords.push(word);
 
+    // all words found
     if (foundWords.length === currentWords.length) {
-      document.getElementById("message").innerText = "🎉 All words found! Loading a new puzzle...";
-      setTimeout(newPuzzle, 2000);
+      document.getElementById("message").innerText = "🎉 Level Completed!";
+      
+      level++; // harder words next time
+
+      setTimeout(newPuzzle, 1800);
     }
   }
 }
 
-// start
+// start game
 newPuzzle();
 </script>
 
