@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>Word Search</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
     body {
         margin: 0;
@@ -95,7 +94,6 @@
         color: black;
     }
 </style>
-
 </head>
 <body>
 
@@ -122,6 +120,7 @@ let wordsByLevel = {
 let words = [];
 let grid = [];
 let selectedCells = [];
+let foundWords = [];
 
 const gridElement = document.getElementById("grid");
 const wordsListElement = document.getElementById("wordsList");
@@ -133,6 +132,7 @@ function randomLetter() {
 
 function chooseWords() {
     words = wordsByLevel[level] || wordsByLevel[4];
+    foundWords = [];
 }
 
 function blankGrid() {
@@ -147,18 +147,15 @@ function blankGrid() {
 
 function placeWord(word) {
     let placed = false;
-
     while (!placed) {
         let dir = Math.floor(Math.random() * 2); // 0 = horizontal, 1 = vertical
         let row = Math.floor(Math.random() * gridSize);
         let col = Math.floor(Math.random() * gridSize);
 
         if (dir === 0 && col + word.length <= gridSize) {
-            // Check if empty
             let canPlace = true;
-            for (let i = 0; i < word.length; i++) {
+            for (let i = 0; i < word.length; i++)
                 if (grid[row][col+i] !== "" && grid[row][col+i] !== word[i]) canPlace = false;
-            }
             if (!canPlace) continue;
             for (let i = 0; i < word.length; i++) grid[row][col+i] = word[i];
             placed = true;
@@ -166,9 +163,8 @@ function placeWord(word) {
 
         if (dir === 1 && row + word.length <= gridSize) {
             let canPlace = true;
-            for (let i = 0; i < word.length; i++) {
+            for (let i = 0; i < word.length; i++)
                 if (grid[row+i][col] !== "" && grid[row+i][col] !== word[i]) canPlace = false;
-            }
             if (!canPlace) continue;
             for (let i = 0; i < word.length; i++) grid[row+i][col] = word[i];
             placed = true;
@@ -177,11 +173,9 @@ function placeWord(word) {
 }
 
 function placeAllWords() {
-    for (let word of words) {
-        placeWord(word);
-    }
+    for (let word of words) placeWord(word);
 
-    // Fill empty spaces with random letters
+    // Fill empty spaces
     for (let r = 0; r < gridSize; r++) {
         for (let c = 0; c < gridSize; c++) {
             if (grid[r][c] === "") grid[r][c] = randomLetter();
@@ -190,7 +184,8 @@ function placeAllWords() {
 }
 
 function renderWordsList() {
-    wordsListElement.innerHTML = words.map(w => `<div id="word-${w}">${w}</div>`).join("");
+    wordsListElement.innerHTML = words.map(w =>
+        `<div id="word-${w}">${w}</div>`).join("");
 }
 
 function renderGrid() {
@@ -225,27 +220,49 @@ function checkWordFound() {
     let reversed = letters.split("").reverse().join("");
 
     for (let word of words) {
-        if (letters === word || reversed === word) {
+        if (!foundWords.includes(word) && (letters === word || reversed === word)) {
             markWordFound(word);
         }
     }
 }
 
 function markWordFound(word) {
-    selectedCells.forEach(c => c.classList.add("found"));
+    foundWords.push(word);
+    highlightWordInGrid(word);
     selectedCells.forEach(c => c.classList.remove("highlight"));
     selectedCells = [];
 
-    document.getElementById(`word-${word}`).style.textDecoration = "line-through";
-    document.getElementById(`word-${word}`).style.color = "lime";
+    let wordElem = document.getElementById(`word-${word}`);
+    wordElem.style.textDecoration = "line-through";
+    wordElem.style.color = "lime";
 
-    // Check if all words done
-    let allDone = words.every(w =>
-        document.getElementById(`word-${w}`).style.textDecoration === "line-through"
-    );
-
-    if (allDone) {
+    if (foundWords.length === words.length) {
         setTimeout(nextLevel, 1000);
+    }
+}
+
+// Search entire grid to highlight all occurrences of the word
+function highlightWordInGrid(word) {
+    let directions = [[1,0],[0,1],[-1,0],[0,-1]]; // horizontal & vertical
+    let reversed = word.split("").reverse().join("");
+
+    for (let r = 0; r < gridSize; r++) {
+        for (let c = 0; c < gridSize; c++) {
+            for (let [dx,dy] of directions) {
+                let letters = "";
+                let cells = [];
+                for (let i=0;i<word.length;i++){
+                    let nr=r+i*dy;
+                    let nc=c+i*dx;
+                    if(nr<0||nr>=gridSize||nc<0||nc>=gridSize) break;
+                    letters+=grid[nr][nc];
+                    cells.push(document.querySelector(`.cell[data-row='${nr}'][data-col='${nc}']`));
+                }
+                if(letters===word||letters===reversed){
+                    cells.forEach(cell=>cell.classList.add("found"));
+                }
+            }
+        }
     }
 }
 
