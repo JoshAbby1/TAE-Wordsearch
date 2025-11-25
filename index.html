@@ -5,13 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
 <title>Word Search — nortydigitalcrew</title>
 <style>
-  :root{--bg:#777;--panel:rgba(255,255,255,0.18);--cell-bg:#fff;--cell-size:40px}
+  :root{--bg:#777;--panel:rgba(255,255,255,0.18);--cell-size:40px}
   html,body{height:100%;margin:0}
   body{
     background:var(--bg);
     font-family:Arial,Helvetica,sans-serif;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
     display:flex;
     flex-direction:column;
     align-items:center;
@@ -34,12 +32,21 @@
     filter:blur(2px);
   }
 
-  /* Title + credit */
-  header{z-index:2; text-align:center; margin-top:14px}
-  h1{margin:0;font-size:26px;color:#fff;letter-spacing:2px}
-  .credit{margin-top:4px;color:#fff;opacity:.95;font-size:14px;text-transform:none}
+  /* Top instruction (moved to top) */
+  .instruction {
+    z-index:2;
+    text-align:center;
+    margin-top:12px;
+    font-size:16px;
+    font-weight:700;
+    color:#fff;
+    text-shadow:1px 1px 2px rgba(0,0,0,0.6);
+  }
 
-  /* Words list above grid */
+  header{z-index:2; text-align:center; margin-top:8px}
+  h1{margin:4px 0 0 0;font-size:26px;color:#fff;letter-spacing:1px}
+  .credit{margin-top:4px;color:#fff;opacity:.95;font-size:14px}
+
   #wordsWrap{z-index:2; margin-top:12px; width:95%; max-width:980px; display:flex; justify-content:center}
   #wordsList{
     background:var(--panel);
@@ -47,7 +54,7 @@
     border-radius:10px;
     color:white;
     font-weight:700;
-    font-size:16px;
+    font-size:15px;
     display:flex;
     gap:10px;
     flex-wrap:wrap;
@@ -56,7 +63,7 @@
   .wordItem{padding:4px 8px;border-radius:6px;background:transparent;color:#fff}
   .wordFound{ text-decoration:line-through; color:#c8ffc8; background:transparent }
 
-  /* area that centers the grid in middle of screen (9:16 portrait) */
+  /* the main area that centers the grid vertically in the tall 9:16 view */
   #gridArea{
     z-index:2;
     width:100%;
@@ -64,11 +71,11 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:10px 8px 20px 8px;
+    padding:8px 8px 18px 8px;
     box-sizing:border-box;
   }
 
-  /* the grid */
+  /* grid panel */
   #grid{
     display:grid;
     background:var(--panel);
@@ -78,21 +85,19 @@
     touch-action: manipulation;
   }
 
-  /* cells */
   .cell{
     width:var(--cell-size);
     height:var(--cell-size);
     display:flex;
     align-items:center;
     justify-content:center;
-    background:var(--cell-bg);
+    background:#fff;
     border-radius:6px;
     user-select:none;
     -webkit-user-select:none;
     font-weight:800;
     font-size:calc(var(--cell-size) * 0.48);
     color:#222;
-    box-shadow:0 1px 0 rgba(0,0,0,0.06) inset;
     cursor:pointer;
     transition:background .12s, transform .06s;
   }
@@ -101,16 +106,18 @@
   .cell.highlight{ background:#ffe66d }    /* temporary selection highlight */
   .cell.found{ background:#6cff6c !important; color:#000 } /* final found */
 
-  /* footer / level */
-  footer{ z-index:2; color:#fff; font-size:14px; margin-bottom:14px }
+  footer{ z-index:2; color:#fff; font-size:13px; margin-bottom:12px }
   .small{ font-size:12px; opacity:.85 }
+
   @media (min-width:900px){
     h1{font-size:30px}
-    .credit{font-size:15px}
   }
 </style>
 </head>
 <body>
+  <!-- top instruction moved to very top -->
+  <div class="instruction">Tap the first letter and the last letter to select a word</div>
+
   <header>
     <h1>WORD SEARCH</h1>
     <div class="credit">made by @nortydigitalcrew</div>
@@ -124,20 +131,10 @@
     <div id="grid" role="grid" aria-label="Word search grid"></div>
   </div>
 
-  <footer><span id="levelLabel">Level 1</span> <span class="small"> — tap first letter then last letter to select a word</span></footer>
+  <footer><span id="levelLabel">Level 1</span> <span class="small"> — tap start/end to select</span></footer>
 
 <script>
-/*
-  Reliable Word Search
-  - guarantees every listed word is placed
-  - selection: tap first cell then tap last cell -> selects line between
-  - supports horizontal, vertical, diagonal both directions
-  - highlights full word in green & crosses word off list
-  - grid auto-scales to fit tall 9:16 mobile screens without scrolling
-  - progressive levels, no repeats
-*/
-
-// CONFIG
+/* ---------- CONFIG & STATE ---------- */
 const MASTER_WORDS = [
   "DOG","SUN","CAR","HAT","TREE","BOOK","MOON","STAR","FROG","HILL",
   "PHONE","BRICK","CHAIR","SPOON","BREAD","WATER","MONEY","STONE",
@@ -147,11 +144,10 @@ const MASTER_WORDS = [
   "CAMERA","WINDOW","GARDEN","BICYCLE","CUPBOARD","PICTURE","NETWORK"
 ];
 
-const START_GRID_SIZE = 12;       // starting grid (12x12)
-const MAX_GRID_SIZE = 16;         // grows if needed
-const MAX_WORDS_PER_LEVEL = 10;   // upper bound
+const START_GRID_SIZE = 12;
+const MAX_GRID_SIZE = 18;
+const MAX_WORDS_PER_LEVEL = 10;
 
-// state
 let gridSize = START_GRID_SIZE;
 let grid = [];
 let level = 1;
@@ -160,62 +156,53 @@ let currentWords = [];
 let foundWords = new Set();
 let firstSelected = null;
 
-// ui refs
+/* UI refs */
 const gridEl = document.getElementById('grid');
 const wordsListEl = document.getElementById('wordsList');
 const levelLabel = document.getElementById('levelLabel');
 
-// helpers
+/* helpers */
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const rand = n => Math.floor(Math.random()*n);
-const shuffle = arr => { for(let i=arr.length-1;i>0;i--){const j=rand(i+1);[arr[i],arr[j]]=[arr[j],arr[i]]} };
+const shuffle = arr => { for(let i=arr.length-1;i>0;i--){const j=rand(i+1);[arr[i],arr[j]]=[arr[j],arr[i]];} };
 
-// compute cell size to fit 9:16 tall screen without scroll
+/* compute cell size to fit tall 9:16 without scrolling */
 function computeCellSize(size){
-  // available height: viewport minus header, words list and footer margins
   const vh = window.innerHeight;
-  const headerH = Math.min(120, vh*0.14);
-  const wordsH = Math.min(140, vh*0.12);
-  const footerH = 56;
-  const availableH = vh - (headerH + wordsH + footerH + 34); // padding
+  const headerH = Math.min(120, vh*0.13);
+  const wordsH = Math.min(160, vh*0.14);
+  const footerH = 60;
+  const availableH = vh - (headerH + wordsH + footerH + 40);
   const cellByHeight = Math.floor(availableH / size);
-  const availableW = window.innerWidth - 32; // margins
+  const availableW = window.innerWidth - 28;
   const cellByWidth = Math.floor(availableW / size);
-  const final = Math.max(20, Math.min(cellByHeight, cellByWidth)); // min 20px
+  const final = Math.max(20, Math.min(cellByHeight, cellByWidth));
   return final;
 }
 
-// initialize blank grid
+/* ---------- GRID & PLACEMENT ---------- */
 function clearGrid(){
   grid = Array.from({length:gridSize}, ()=>Array.from({length:gridSize}, ()=>""));
 }
 
-// attempt to place single word in random direction; return true if placed
-function attemptPlaceWord(word, maxAttempts=300){
-  const directions = [
-    [1,0],[0,1],[-1,0],[0,-1],   // horiz/vert
-    [1,1],[1,-1],[-1,1],[-1,-1]  // diagonals
-  ];
-  // try many times
+function attemptPlaceWordWithGrid(word, maxAttempts=600){
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
   for(let attempt=0; attempt<maxAttempts; attempt++){
-    const dir = directions[rand(directions.length)];
-    const dx = dir[0], dy = dir[1];
-    // choose starting x,y such that word fits
-    const maxX = dx===1 ? gridSize - word.length : dx===-1 ? word.length - 1 : gridSize - 1;
-    const minX = dx===-1 ? word.length - 1 : 0;
-    const maxY = dy===1 ? gridSize - word.length : dy===-1 ? word.length - 1 : gridSize - 1;
-    const minY = dy===-1 ? word.length - 1 : 0;
-    const x = minX + rand(Math.max(1, maxX - minX + 1));
-    const y = minY + rand(Math.max(1, maxY - minY + 1));
-    // check conflict
+    const [dx,dy] = dirs[rand(dirs.length)];
+    const minX = dx===-1 ? word.length-1 : 0;
+    const maxX = dx===1 ? gridSize - word.length : gridSize - 1;
+    const minY = dy===-1 ? word.length-1 : 0;
+    const maxY = dy===1 ? gridSize - word.length : gridSize - 1;
+    if(minX > maxX || minY > maxY) continue;
+    const x = minX + rand(maxX - minX + 1);
+    const y = minY + rand(maxY - minY + 1);
     let ok = true;
     for(let i=0;i<word.length;i++){
       const nx = x + i*dx, ny = y + i*dy;
-      const cell = grid[ny][nx];
-      if(cell!=="" && cell !== word[i]) { ok=false; break; }
+      const ch = grid[ny][nx];
+      if(ch !== "" && ch !== word[i]) { ok=false; break; }
     }
     if(!ok) continue;
-    // place
     for(let i=0;i<word.length;i++){
       const nx = x + i*dx, ny = y + i*dy;
       grid[ny][nx] = word[i];
@@ -225,88 +212,33 @@ function attemptPlaceWord(word, maxAttempts=300){
   return false;
 }
 
-// place all chosen words — if any fail, try regenerating (increase attempts or grid)
 function placeAllWordsOrResize(words){
   clearGrid();
-  // attempt to place all words; if any can't be placed after many tries, return false
-  for(let w of words){
-    let ok = attemptPlaceWord(w, 500);
+  for(const w of words){
+    const ok = attemptPlaceWordWithGrid(w, 800);
     if(!ok) return false;
   }
-  // fill empty
+  // fill empties
   for(let r=0;r<gridSize;r++) for(let c=0;c<gridSize;c++) if(grid[r][c]==="") grid[r][c] = LETTERS[rand(LETTERS.length)];
   return true;
 }
 
-// choose words for current level (no repeats), scaled lengths and count
-function chooseWordsForLevel(){
-  const minLen = 1;
-  // per your request: level influences max word length ranges; we use progressive ranges:
-  // level1: up to 5, level2: up to 8, level3: up to 10, level4+: up to 12
-  let maxLen;
-  if(level===1) maxLen = 5;
-  else if(level===2) maxLen = 8;
-  else if(level===3) maxLen = 10;
-  else maxLen = 12;
-
-  // words count increases with level
-  const count = Math.min(MAX_WORDS_PER_LEVEL, 4 + level);
-
-  const pool = MASTER_WORDS.filter(w => !usedWords.has(w) && w.length>=minLen && w.length<=maxLen);
-  shuffle(pool);
-  const pick = pool.slice(0, count);
-  return pick;
-}
-
-// build puzzle for current level; ensure placement succeeded
-function buildPuzzle(){
-  // choose words until placement succeeds (if not, try bigger grid up to MAX_GRID_SIZE)
-  let attemptGrid = gridSize;
-  while(true){
-    const words = chooseWordsForLevel();
-    if(words.length===0) {
-      // fallback if exhausted pool — reset usedWords but keep progression
-      usedWords.clear();
-      // re-run
-      continue;
-    }
-    // set current words
-    currentWords = words;
-    // try placing
-    gridSize = attemptGrid;
-    if(placeAllWordsOrResize(currentWords)){
-      // success
-      return true;
-    } else {
-      // increase grid size & retry
-      if(attemptGrid < MAX_GRID_SIZE) { attemptGrid++; continue; }
-      // ultimate fallback: shuffle words and retry
-      shuffle(currentWords);
-      if(placeAllWordsOrResize(currentWords)) return true;
-      // if still fails, expand pool by resetting usedWords and trying again
-      usedWords.clear();
-      attemptGrid = Math.min(MAX_GRID_SIZE, START_GRID_SIZE);
-    }
-  }
-}
-
-// UI render functions
+/* ---------- WORD SELECTION & HIGHLIGHT ---------- */
 function renderWordsList(){
   wordsListEl.innerHTML = "";
   for(const w of currentWords){
     const d = document.createElement('div');
     d.className = 'wordItem';
-    d.id = `word-${w}`;
+    d.id = 'word-' + w;
     d.textContent = w;
     wordsListEl.appendChild(d);
   }
 }
 
 function renderGrid(){
-  // compute cell size to fit vertical 9:16 without scroll
+  // compute cell size and apply
   const cellSize = computeCellSize(gridSize);
   document.documentElement.style.setProperty('--cell-size', cellSize + 'px');
-
   gridEl.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
   gridEl.style.gridTemplateRows = `repeat(${gridSize}, ${cellSize}px)`;
   gridEl.innerHTML = "";
@@ -323,7 +255,7 @@ function renderGrid(){
   }
 }
 
-// selection logic: click-first-then-last
+/* click-first-then-last selection */
 function onCellClick(e){
   const el = e.currentTarget;
   if(!firstSelected){
@@ -331,69 +263,56 @@ function onCellClick(e){
     el.classList.add('highlight');
     return;
   }
-  // second click -> compute line from firstSelected to this cell
+  // second click
   const r1 = parseInt(firstSelected.dataset.row), c1 = parseInt(firstSelected.dataset.col);
   const r2 = parseInt(el.dataset.row), c2 = parseInt(el.dataset.col);
-  // compute dx,dy as step normalized
   const dr = r2 - r1, dc = c2 - c1;
   const steps = Math.max(Math.abs(dr), Math.abs(dc));
   if(steps === 0){
-    // clicked same cell twice -> clear
     firstSelected.classList.remove('highlight');
     firstSelected = null;
     return;
   }
   const stepR = dr === 0 ? 0 : dr / steps;
   const stepC = dc === 0 ? 0 : dc / steps;
-  // must be integer steps direction (straight line or diagonal)
   if(!Number.isInteger(stepR) || !Number.isInteger(stepC)){
-    // not a straight line - clear selection and set new first
     firstSelected.classList.remove('highlight');
     firstSelected = el;
     el.classList.add('highlight');
     return;
   }
-
-  // collect cells along the line inclusive
+  // collect line
   const collected = [];
   for(let i=0;i<=steps;i++){
     const rr = r1 + i*stepR, cc = c1 + i*stepC;
-    // bounds check
     if(rr<0||rr>=gridSize||cc<0||cc>=gridSize){ collected.length=0; break; }
     const selector = `.cell[data-row="${rr}"][data-col="${cc}"]`;
     const cellEl = document.querySelector(selector);
     if(!cellEl){ collected.length=0; break; }
     collected.push(cellEl);
   }
-  // clear previous highlight(s)
+  // clear old highlights
   document.querySelectorAll('.cell.highlight').forEach(x => x.classList.remove('highlight'));
-
-  // highlight current selection visually
   collected.forEach(x => x.classList.add('highlight'));
-
-  // build the word string
+  // build string & check
   const letters = collected.map(c => c.textContent).join('');
   const rev = letters.split('').reverse().join('');
-  const match = currentWords.find(w => w === letters || w === rev);
-  if(match && !foundWords.has(match)){
-    // mark found: highlight permanently and cross off
-    collected.forEach(x => { x.classList.remove('highlight'); x.classList.add('found'); });
+  const match = currentWords.find(w => (w === letters || w === rev) && !foundWords.has(w));
+  if(match){
+    // mark found everywhere and cross off
+    highlightAllOccurrences(match);
     foundWords.add(match);
     const wordEl = document.getElementById('word-' + match);
     if(wordEl){ wordEl.classList.add('wordFound'); wordEl.style.textDecoration = 'line-through'; wordEl.style.color = '#bfffbf'; }
-    // ensure every instance of the word is highlighted (scan grid full)
-    highlightAllOccurrences(match);
-    // level complete check
+    // check completion
     if(foundWords.size === currentWords.length){
-      setTimeout(()=>{ levelUp(); }, 900);
+      setTimeout(() => nextLevel(), 850);
     }
   }
-
-  // reset firstSelected (so user can select new)
   firstSelected = null;
 }
 
-// Ensure we highlight all occurrences of the word in the placed grid (rarely there could be multiple placements)
+/* search and permanently mark every occurrence of a word */
 function highlightAllOccurrences(word){
   const rev = word.split('').reverse().join('');
   const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
@@ -408,21 +327,53 @@ function highlightAllOccurrences(word){
           const el = document.querySelector(`.cell[data-row="${rr}"][data-col="${cc}"]`);
           cells.push(el);
         }
-        if(s===word || s===rev){
-          cells.forEach(el=>el && el.classList.add('found'));
+        if(s === word || s === rev){
+          cells.forEach(el => el && el.classList.add('found'));
         }
       }
     }
   }
 }
 
-// level up: pick new words and build new puzzle
-function levelUp(){
+/* ---------- LEVEL / WORD SELECTION ---------- */
+function chooseWordsForLevel(){
+  const minLen = 1;
+  let maxLen = level === 1 ? 5 : level === 2 ? 8 : level === 3 ? 10 : 12;
+  const count = Math.min(MAX_WORDS_PER_LEVEL, 4 + level);
+  let pool = MASTER_WORDS.filter(w => !usedWords.has(w) && w.length >= minLen && w.length <= maxLen);
+  shuffle(pool);
+  if(pool.length < count){
+    // include previously used words if pool too small (avoid empty)
+    const extra = MASTER_WORDS.filter(w => !pool.includes(w) && w.length >= minLen && w.length <= maxLen);
+    shuffle(extra);
+    pool = pool.concat(extra);
+  }
+  return pool.slice(0, count);
+}
+
+function setupPuzzleForLevel(){
+  let chosen = chooseWordsForLevel();
+  if(chosen.length === 0) return false;
+  currentWords = chosen;
+  currentWords.forEach(w => usedWords.add(w));
+  // attempt placing: try increasing grid until success
+  let tryGrid = Math.max(START_GRID_SIZE, gridSize);
+  while(tryGrid <= MAX_GRID_SIZE){
+    gridSize = tryGrid;
+    if(placeAllWordsOrResize(currentWords)) {
+      foundWords.clear();
+      return true;
+    }
+    tryGrid++;
+  }
+  return false;
+}
+
+function nextLevel(){
   level++;
   levelLabel.textContent = 'Level ' + level;
-  // choose new words (no repeats overall)
-  const success = setupPuzzleForLevel();
-  if(!success){
+  const ok = setupPuzzleForLevel();
+  if(!ok){
     // fallback: reset usedWords and try again
     usedWords.clear();
     setupPuzzleForLevel();
@@ -431,97 +382,8 @@ function levelUp(){
   renderGrid();
 }
 
-// Setup puzzle for current level; returns true if possible
-function setupPuzzleForLevel(){
-  // pick candidate words obeying length rules
-  const minLen = 1;
-  let maxLen;
-  if(level===1) maxLen=5;
-  else if(level===2) maxLen=8;
-  else if(level===3) maxLen=10;
-  else maxLen=12;
-
-  const count = Math.min(MAX_WORDS_PER_LEVEL, 4 + level);
-
-  // available pool excluding used words
-  let pool = MASTER_WORDS.filter(w => !usedWords.has(w) && w.length>=minLen && w.length<=maxLen);
-  shuffle(pool);
-  // if pool insufficient, include previously used words as last resort
-  if(pool.length < count){
-    const extra = MASTER_WORDS.filter(w => w.length>=minLen && w.length<=maxLen && !pool.includes(w));
-    shuffle(extra);
-    pool = pool.concat(extra);
-  }
-
-  const chosen = pool.slice(0, count);
-  if(chosen.length === 0) return false;
-  currentWords = chosen;
-  currentWords.forEach(w => usedWords.add(w));
-  // attempt placing; if fail, try increasing gridSize up to MAX
-  let attemptGrid = gridSize;
-  for(let sizeTry = gridSize; sizeTry <= MAX_GRID_SIZE; sizeTry++){
-    gridSize = sizeTry;
-    if(placeAllWordsOrResize(currentWords)) {
-      // success
-      foundWords.clear();
-      return true;
-    }
-  }
-  // fail
-  return false;
-}
-
-// placeAllWordsOrResize uses current gridSize and currentWords to try place them; returns boolean
-function placeAllWordsOrResize(words){
-  clearGrid();
-  // try placing all words
-  const retired = [];
-  for(const w of words){
-    const ok = attemptPlaceWordWithGrid(w, 600);
-    if(!ok){ // failed to place this word on this grid
-      // abort
-      return false;
-    }
-  }
-  // fill empty cells
-  for(let r=0;r<gridSize;r++) for(let c=0;c<gridSize;c++) if(grid[r][c]==="") grid[r][c] = LETTERS[rand(LETTERS.length)];
-  return true;
-}
-
-// attemptPlaceWordWithGrid places on current grid variable (bound by gridSize)
-function attemptPlaceWordWithGrid(word, maxAttempts=300){
-  const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
-  for(let attempt=0; attempt<maxAttempts; attempt++){
-    const dir = dirs[rand(dirs.length)];
-    const dx = dir[0], dy = dir[1];
-    // compute bounds for start so word fits
-    const minX = dx===-1 ? word.length-1 : 0;
-    const maxX = dx===1 ? gridSize - word.length : gridSize-1;
-    const minY = dy===-1 ? word.length-1 : 0;
-    const maxY = dy===1 ? gridSize - word.length : gridSize-1;
-    if(minX > maxX || minY > maxY) continue;
-    const x = minX + rand(maxX - minX + 1);
-    const y = minY + rand(maxY - minY + 1);
-    let ok = true;
-    for(let i=0;i<word.length;i++){
-      const nx = x + i*dx, ny = y + i*dy;
-      const ch = grid[ny][nx];
-      if(ch !== "" && ch !== word[i]) { ok=false; break; }
-    }
-    if(!ok) continue;
-    // place
-    for(let i=0;i<word.length;i++){
-      const nx = x + i*dx, ny = y + i*dy;
-      grid[ny][nx] = word[i];
-    }
-    return true;
-  }
-  return false;
-}
-
-// initial setup & start
+/* ---------- INIT & START ---------- */
 function startNewGame(){
-  // reset grid size to start size for the first level
   gridSize = START_GRID_SIZE;
   usedWords.clear();
   level = 1;
@@ -531,12 +393,10 @@ function startNewGame(){
   renderGrid();
 }
 
-// handle window resize to keep grid fitting
 window.addEventListener('resize', () => {
   renderGrid();
 });
 
-// init
 startNewGame();
 </script>
 </body>
